@@ -1,0 +1,11 @@
+[
+  { "id": "entree-1", "name": "6 Fried Chicken Wings", "type": "entree", "description": "Six crispy seasoned wings." },
+  { "id": "entree-2", "name": "5 Piece Fried Salmon Bites", "type": "entree", "description": "Crispy salmon bites." },
+  { "id": "entree-3", "name": "2 Piece Fried Whiting", "type": "entree", "description": "Golden fried whiting fillets." },
+  { "id": "entree-4", "name": "Fried Pork Chop", "type": "entree", "description": "Seasoned fried pork chop." },
+  { "id": "side-1", "name": "Mac & Cheese", "type": "side" },
+  { "id": "side-2", "name": "Green Beans", "type": "side" },
+  { "id": "side-3", "name": "Candied Yams", "type": "side" },
+  { "id": "side-4", "name": "Potato Salad", "type": "side" },
+  { "id": "side-5", "name": "White Rice and Gravy", "type": "side" }
+]

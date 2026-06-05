@@ -1,0 +1,24 @@
+{
+  "name": "food-preorder-platform",
+  "version": "1.0.0",
+  "description": "A preordering platform for a food selling event.",
+  "main": "src/index.html",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build step can be added here'"
+  },
+  "dependencies": {
+    "qrcode": "^1.4.4"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.1"
+  },
+  "keywords": [
+    "food",
+    "preorder",
+    "event",
+    "qr-code"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

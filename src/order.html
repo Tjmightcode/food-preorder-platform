@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Summary</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-copy">
+      <h1>Order Summary</h1>
+      <p>Review your preorder for June 12, 2026.</p>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="menu-section">
+      <div id="order-detail"></div>
+    </section>
+  </main>
+
+  <script>
+    function getQueryParam(name) {
+      return new URLSearchParams(location.search).get(name);
+    }
+
+    function renderOrder(order) {
+      const container = document.getElementById('order-detail');
+      if (!order) {
+        container.innerHTML = '<p>Order not found.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <h2>Order ${order.id}</h2>
+        <p><strong>Event date:</strong> ${order.eventDate}</p>
+        <p><strong>Placed:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
+        <p><strong>Receive:</strong> ${order.delivery.type} at ${order.timeframe}</p>
+        ${order.delivery.type === 'delivery' ? `<p><strong>Address:</strong> ${order.delivery.address}</p><p><strong>Zone:</strong> ${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</p>` : ''}
+        <p><strong>Name:</strong> ${order.customer.name}</p>
+        <h3>Items</h3>
+        ${order.items.map(item => `
+          <div class="item-row">
+            <strong>${item.name}</strong>
+            ${item.flavor ? `<span> • Flavor: ${item.flavor}</span>` : ''}
+            <br />
+            Sides: ${item.sides.map(side => side.name).join(', ')}
+          </div>
+        `).join('')}
+        <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+      `;
+    }
+
+    const orderId = getQueryParam('id');
+    const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+    const order = orders.find(o => o.id === orderId);
+    renderOrder(order);
+  </script>
+</body>
+</html>

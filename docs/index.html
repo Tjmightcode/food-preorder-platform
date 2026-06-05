@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food Preorder — June 12, 2026</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-copy">
+      <span class="tag">Friday • June 12, 2026</span>
+      <h1>Food Preorder</h1>
+      <p>Each plate is $20. Choose pickup or delivery, and pick two sides.</p>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <form id="preorder-form" class="preorder-form">
+      <section class="menu-section">
+        <div class="section-header">
+          <h2>Entrée Plates</h2>
+          <p class="section-copy">Select your plate quantity and choose two sides for each plate.</p>
+        </div>
+        <div id="menu" class="menu-grid"></div>
+      </section>
+
+      <aside class="order-panel">
+        <div class="section-header">
+          <h2>Order Details</h2>
+          <p class="section-copy">Pickup is available until 6:00 PM. Delivery is available until 5:00 PM.</p>
+        </div>
+
+        <fieldset class="delivery-group">
+          <legend>Receive order</legend>
+          <label><input type="radio" name="delivery-type" value="pickup" checked /> Pickup</label>
+          <label><input type="radio" name="delivery-type" value="delivery" /> Delivery</label>
+        </fieldset>
+
+        <label for="timeframe">Time slot</label>
+        <select id="timeframe" required></select>
+
+        <label for="customer-name">Name</label>
+        <input id="customer-name" type="text" placeholder="Your name" required />
+
+        <div id="delivery-details" class="hidden">
+          <label for="delivery-address">Delivery address</label>
+          <input id="delivery-address" type="text" placeholder="Street address, city" />
+          <label for="delivery-zone">Delivery zone</label>
+          <select id="delivery-zone">
+            <option value="local">Local (closest)</option>
+            <option value="regional">Regional</option>
+            <option value="virginiaBeach">Virginia Beach (farthest)</option>
+          </select>
+        </div>
+
+        <div id="cart-summary" class="cart-summary">No plates selected yet.</div>
+
+        <div class="cart-actions">
+          <button id="clearBtn" type="button">Clear</button>
+          <button id="submitBtn" type="submit">Place order</button>
+        </div>
+
+        <div class="admin-link">
+          <a href="orders.html">View/manage placed orders</a>
+        </div>
+
+        <div id="qr-container" class="qr-container"></div>
+        <div id="order-confirmation" class="order-confirmation"></div>
+      </aside>
+    </form>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

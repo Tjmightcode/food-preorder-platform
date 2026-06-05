@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    .orders-table th,
+    .orders-table td {
+      border: 1px solid #d8e2ec;
+      padding: 0.85rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    .orders-table th {
+      background: #f8fafc;
+    }
+    .order-stats {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .order-status-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .top-links {
+      margin-top: 1rem;
+    }
+    .admin-login {
+      max-width: 400px;
+      margin: 2rem auto;
+      padding: 2rem;
+      border: 1px solid #d8e2ec;
+      border-radius: 16px;
+      text-align: center;
+    }
+    .admin-login input {
+      width: 100%;
+      padding: 0.75rem;
+      margin: 0.5rem 0 1rem;
+      border: 1px solid #d8e2ec;
+      border-radius: 8px;
+    }
+    .admin-login button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #1f4f8b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-copy">
+      <h1>Order Dashboard</h1>
+      <p>See total placed orders, and mark pickup/delivery complete.</p>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="menu-section">
+      <div id="admin-gate"></div>
+      <div id="dashboard" style="display: none;">
+        <div class="top-links">
+          <a href="index.html">Back to preorder</a>
+        </div>
+
+        <div id="order-stats" class="order-stats"></div>
+        <div id="orders-container"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const ORDERS_KEY = 'orders';
+    const ADMIN_PASSWORD = 'Tidewater39!'; // Change this to your password
+
+    function getStoredOrders() {
+      return JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
+    }
+
+    function saveStoredOrders(orders) {
+      localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+    }
+
+    function formatStatus(status) {
+      return status === 'completed' ? 'Completed' : 'Pending';
+    }
+
+    function updateOrderStatus(orderId, completed) {
+      const orders = getStoredOrders();
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      order.status = completed ? 'completed' : 'pending';
+      saveStoredOrders(orders);
+      renderOrders();
+    }
+
+    function renderOrders() {
+      const orders = getStoredOrders();
+      const stats = document.getElementById('order-stats');
+      const container = document.getElementById('orders-container');
+
+      const total = orders.length;
+      const completed = orders.filter(o => o.status === 'completed').length;
+      const pending = total - completed;
+
+      stats.innerHTML = `
+        <div><strong>Total orders placed:</strong> ${total}</div>
+        <div><strong>Pending:</strong> ${pending}</div>
+        <div><strong>Completed:</strong> ${completed}</div>
+      `;
+
+      if (!orders.length) {
+        container.innerHTML = '<p>No orders have been placed yet.</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Name</th>
+              <th>Receive</th>
+              <th>Delivery</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map(order => `
+              <tr>
+                <td>
+                  <strong>${order.id}</strong><br />
+                  ${new Date(order.createdAt).toLocaleString()}
+                </td>
+                <td>${order.customer.name}</td>
+                <td>${order.timeframe}</td>
+                <td>
+                  ${order.delivery.type === 'delivery'
+                    ? `<div>${order.delivery.address || 'No address'}</div><div>${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</div>`
+                    : 'Pickup'}
+                </td>
+                <td>
+                  ${order.items.map(item => `
+                    <div>
+                      <strong>${item.name}</strong>
+                      ${item.flavor ? ` • Flavor: ${item.flavor}` : ''}
+                      <br />
+                      Sides: ${item.sides.map(side => side.name).join(', ')}
+                    </div>
+                  `).join('')}
+                </td>
+                <td>$${order.total.toFixed(2)}</td>
+                <td>
+                  <label class="order-status-toggle">
+                    <input type="checkbox" ${order.status === 'completed' ? 'checked' : ''} data-order-id="${order.id}" />
+                    ${formatStatus(order.status)}
+                  </label>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      document.querySelectorAll('input[data-order-id]').forEach(input => {
+        input.addEventListener('change', (event) => {
+          updateOrderStatus(event.target.dataset.orderId, event.target.checked);
+        });
+      });
+    }
+
+    function showLoginForm() {
+      const gate = document.getElementById('admin-gate');
+      gate.innerHTML = `
+        <div class="admin-login">
+          <h2>Admin Access</h2>
+          <p>Enter password to view orders</p>
+          <input type="password" id="password-input" placeholder="Password" />
+          <button onclick="checkPassword()">Login</button>
+        </div>
+      `;
+    }
+
+    function checkPassword() {
+      const input = document.getElementById('password-input');
+      if (input.value === ADMIN_PASSWORD) {
+        sessionStorage.setItem('adminAllowed', 'true');
+        document.getElementById('admin-gate').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderOrders();
+      } else {
+        alert('Incorrect password');
+        input.value = '';
+      }
+    }
+
+    // Check if already logged in
+    if (sessionStorage.getItem('adminAllowed') === 'true') {
+      document.getElementById('admin-gate').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      renderOrders();
+    } else {
+      showLoginForm();
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && document.getElementById('password-input')) {
+        checkPassword();
+      }
+    });
+  </script>
+</body>
+</html>
