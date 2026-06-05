@@ -399,8 +399,8 @@ function getQueryParam(name) {
 
 function renderOrder(order) {
   const container = document.getElementById('order-detail');
-  if (!order) {
-    container.innerHTML = '<p>Order not found.</p>';
+  if (!order || !container) {
+    if (container) container.innerHTML = '<p>Order not found.</p>';
     return;
   }
 
@@ -425,8 +425,10 @@ function renderOrder(order) {
 }
 
 async function loadOrder() {
-  const orderId = getQueryParam('id');
   const container = document.getElementById('order-detail');
+  if (!container) return;
+
+  const orderId = getQueryParam('id');
   if (!orderId) {
     container.innerHTML = '<p>Order ID is missing.</p>';
     return;
@@ -446,138 +448,143 @@ async function loadOrder() {
   }
 }
 
-loadOrder();
+const ORDERS_KEY = 'orders';
+const ADMIN_PASSWORD = 'your-secret-password';
 
-<script>
-  const ORDERS_KEY = 'orders';
-  const ADMIN_PASSWORD = 'your-secret-password';
+function formatStatus(status) {
+  return status === 'completed' ? 'Completed' : 'Pending';
+}
 
-  function formatStatus(status) {
-    return status === 'completed' ? 'Completed' : 'Pending';
-  }
-
-  async function updateOrderStatus(orderId, completed) {
-    try {
-      await db.collection('orders').doc(orderId).update({
-        status: completed ? 'completed' : 'pending'
-      });
-      renderOrders();
-    } catch (error) {
-      console.error(error);
-      alert('Unable to update order status.');
-    }
-  }
-
-  async function fetchOrders() {
-    const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => doc.data());
-  }
-
-  async function renderOrders() {
-    const orders = await fetchOrders();
-    const stats = document.getElementById('order-stats');
-    const container = document.getElementById('orders-container');
-
-    const total = orders.length;
-    const completed = orders.filter(o => o.status === 'completed').length;
-    const pending = total - completed;
-
-    stats.innerHTML = `
-      <div><strong>Total orders placed:</strong> ${total}</div>
-      <div><strong>Pending:</strong> ${pending}</div>
-      <div><strong>Completed:</strong> ${completed}</div>
-    `;
-
-    if (!orders.length) {
-      container.innerHTML = '<p>No orders have been placed yet.</p>';
-      return;
-    }
-
-    container.innerHTML = `
-      <table class="orders-table">
-        <thead>
-          <tr>
-            <th>Order</th>
-            <th>Name</th>
-            <th>Receive</th>
-            <th>Delivery</th>
-            <th>Items</th>
-            <th>Total</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${orders.map(order => `
-            <tr>
-              <td><strong>${order.id}</strong><br/>${new Date(order.createdAt).toLocaleString()}</td>
-              <td>${order.customer.name}</td>
-              <td>${order.timeframe}</td>
-              <td>${order.delivery.type === 'delivery'
-                ? `<div>${order.delivery.address || 'No address'}</div><div>${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</div>`
-                : 'Pickup'}</td>
-              <td>${order.items.map(item => `
-                <div>
-                  <strong>${item.name}</strong>
-                  ${item.flavor ? ` • Flavor: ${item.flavor}` : ''}
-                  <br/>Sides: ${item.sides.map(side => side.name).join(', ')}
-                </div>
-              `).join('')}</td>
-              <td>$${order.total.toFixed(2)}</td>
-              <td>
-                <label class="order-status-toggle">
-                  <input type="checkbox" ${order.status === 'completed' ? 'checked' : ''} data-order-id="${order.id}" />
-                  ${formatStatus(order.status)}
-                </label>
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-
-    document.querySelectorAll('input[data-order-id]').forEach(input => {
-      input.addEventListener('change', (event) => {
-        updateOrderStatus(event.target.dataset.orderId, event.target.checked);
-      });
+async function updateOrderStatus(orderId, completed) {
+  try {
+    await db.collection('orders').doc(orderId).update({
+      status: completed ? 'completed' : 'pending'
     });
+    renderOrders();
+  } catch (error) {
+    console.error(error);
+    alert('Unable to update order status.');
+  }
+}
+
+async function fetchOrders() {
+  const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
+  return snapshot.docs.map(doc => doc.data());
+}
+
+async function renderOrders() {
+  const orders = await fetchOrders();
+  const stats = document.getElementById('order-stats');
+  const container = document.getElementById('orders-container');
+
+  if (!stats || !container) return;
+
+  const total = orders.length;
+  const completed = orders.filter(o => o.status === 'completed').length;
+  const pending = total - completed;
+
+  stats.innerHTML = `
+    <div><strong>Total orders placed:</strong> ${total}</div>
+    <div><strong>Pending:</strong> ${pending}</div>
+    <div><strong>Completed:</strong> ${completed}</div>
+  `;
+
+  if (!orders.length) {
+    container.innerHTML = '<p>No orders have been placed yet.</p>';
+    return;
   }
 
-  function showLoginForm() {
-    const gate = document.getElementById('admin-gate');
-    gate.innerHTML = `
-      <div class="admin-login">
-        <h2>Admin Access</h2>
-        <p>Enter password to view orders</p>
-        <input type="password" id="password-input" placeholder="Password" />
-        <button onclick="checkPassword()">Login</button>
-      </div>
-    `;
-  }
+  container.innerHTML = `
+    <table class="orders-table">
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Name</th>
+          <th>Receive</th>
+          <th>Delivery</th>
+          <th>Items</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${orders.map(order => `
+          <tr>
+            <td><strong>${order.id}</strong><br/>${new Date(order.createdAt).toLocaleString()}</td>
+            <td>${order.customer.name}</td>
+            <td>${order.timeframe}</td>
+            <td>${order.delivery.type === 'delivery'
+              ? `<div>${order.delivery.address || 'No address'}</div><div>${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</div>`
+              : 'Pickup'}</td>
+            <td>${order.items.map(item => `
+              <div>
+                <strong>${item.name}</strong>
+                ${item.flavor ? ` • Flavor: ${item.flavor}` : ''}
+                <br/>Sides: ${item.sides.map(side => side.name).join(', ')}
+              </div>
+            `).join('')}</td>
+            <td>$${order.total.toFixed(2)}</td>
+            <td>
+              <label class="order-status-toggle">
+                <input type="checkbox" ${order.status === 'completed' ? 'checked' : ''} data-order-id="${order.id}" />
+                ${formatStatus(order.status)}
+              </label>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 
-  function checkPassword() {
-    const input = document.getElementById('password-input');
-    if (input.value === ADMIN_PASSWORD) {
-      sessionStorage.setItem('adminAllowed', 'true');
-      document.getElementById('admin-gate').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      renderOrders();
-    } else {
-      alert('Incorrect password');
-      input.value = '';
-    }
+  document.querySelectorAll('input[data-order-id]').forEach(input => {
+    input.addEventListener('change', (event) => {
+      updateOrderStatus(event.target.dataset.orderId, event.target.checked);
+    });
+  });
+}
+
+function showLoginForm() {
+  const gate = document.getElementById('admin-gate');
+  if (!gate) return;
+  gate.innerHTML = `
+    <div class="admin-login">
+      <h2>Admin Access</h2>
+      <p>Enter password to view orders</p>
+      <input type="password" id="password-input" placeholder="Password" />
+      <button onclick="checkPassword()">Login</button>
+    </div>
+  `;
+}
+
+function checkPassword() {
+  const input = document.getElementById('password-input');
+  if (!input) return;
+  if (input.value === ADMIN_PASSWORD) {
+    sessionStorage.setItem('adminAllowed', 'true');
+    document.getElementById('admin-gate')?.remove();
+    document.getElementById('dashboard')?.style?.setProperty('display', 'block');
+    renderOrders();
+  } else {
+    alert('Incorrect password');
+    input.value = '';
   }
+}
+
+function initAdminPage() {
+  if (!document.getElementById('admin-gate') && !document.getElementById('dashboard')) return;
 
   if (sessionStorage.getItem('adminAllowed') === 'true') {
-    document.getElementById('admin-gate').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('admin-gate')?.remove();
+    document.getElementById('dashboard')?.style?.setProperty('display', 'block');
     renderOrders();
   } else {
     showLoginForm();
   }
+}
 
-  document.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && document.getElementById('password-input')) {
-      checkPassword();
-    }
-  });
-</script>
+window.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('order-detail')) {
+    loadOrder();
+  }
+  initAdminPage();
+});
