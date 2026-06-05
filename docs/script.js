@@ -161,19 +161,23 @@ function renderTimeframeOptions() {
   if (!select) return;
 
   select.innerHTML = '';
-  const endHour = deliveryType.value === 'delivery' ? 17 : 18;
 
+  const endHour = deliveryType.value === 'delivery' ? 17 : 18;
   for (let minutes = 11 * 60; minutes < endHour * 60; minutes += 15) {
     const start = formatTime(minutes);
     const end = formatTime(minutes + 15);
-    select.appendChild(new Option(`${start} - ${end}`, `${start} - ${end}`));
+    const label = `${start} - ${end} ET`;
+    select.appendChild(new Option(label, label));
   }
 }
 
 function formatTime(totalMinutes) {
-  const hour = Math.floor(totalMinutes / 60);
+  const hour24 = Math.floor(totalMinutes / 66);
   const minute = totalMinutes % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) hour12 = 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
 }
 
 function gatherOrder() {
@@ -263,16 +267,7 @@ function deliveriesAtSlotAndZone(timeframe, zone) {
   return getStoredOrders().filter(order => order.timeframe === timeframe && order.delivery.type === 'delivery' && order.delivery.zone === zone);
 }
 
-async function saveOrderToFirestore(order) {
-  const orderRef = db.collection('orders').doc();
-  order.id = orderRef.id;
-  order.createdAt = new Date().toISOString();
-  order.status = 'pending';
-  await orderRef.set(order);
-  return order.id;
-}
-
-async function handlePreorder(event) {
+function handlePreorder(event) {
   event.preventDefault();
   const order = gatherOrder();
   const errors = [];
@@ -317,6 +312,25 @@ async function handlePreorder(event) {
     }
   });
 
+  const sameSlotOrders = ordersAtSlot(order.timeframe);
+  if (sameSlotOrders.length >= MAX_ORDERS_PER_SLOT) {
+    errors.push('That time slot is fully booked.');
+  }
+
+  const sameHourOrders = ordersAtHour(order.timeframe);
+  if (sameHourOrders.length >= MAX_ORDERS_PER_HOUR) {
+    errors.push('Too many orders in that hour.');
+  }
+
+  if (order.delivery.type === 'delivery') {
+    const deliveriesForZone = deliveriesAtSlotAndZone(order.timeframe, order.delivery.zone);
+    const limit = MAX_DELIVERY_PER_SLOT_BY_ZONE[order.delivery.zone] || 1;
+    if (deliveriesForZone.length >= limit) {
+      const zoneName = order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone;
+      errors.push(`${zoneName} delivery slot is full.`);
+    }
+  }
+
   if (errors.length) {
     alert(errors.join('\n'));
     return;
@@ -333,8 +347,12 @@ async function handlePreorder(event) {
   setInventory(inventory);
   refreshStockDisplay(inventory);
 
+  const orderId = `ORD-${Date.now()}`;
+  const storedOrders = getStoredOrders();
   const newOrder = {
+    id: orderId,
     eventDate: '2026-06-12',
+    createdAt: new Date().toISOString(),
     timeframe: order.timeframe,
     delivery: order.delivery,
     customer: order.customer,
@@ -343,14 +361,8 @@ async function handlePreorder(event) {
     status: 'pending'
   };
 
-  let orderId;
-  try {
-    orderId = await saveOrderToFirestore(newOrder);
-  } catch (error) {
-    console.error('Firestore save failed', error);
-    alert('Unable to save order. Please try again.');
-    return;
-  }
+  storedOrders.push(newOrder);
+  localStorage.setItem('orders', JSON.stringify(storedOrders));
 
   const orderLink = `${location.origin}/order.html?id=${encodeURIComponent(orderId)}`;
   const qrContainer = document.getElementById('qr-container');
@@ -393,198 +405,18 @@ function clearForm() {
   updateCartSummary();
 }
 
-function getQueryParam(name) {
-  return new URLSearchParams(location.search).get(name);
-}
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfJfJfJfJfJfJfJfJfJfJfJfJfJfJfJf",
+    authDomain: "food-preorder-12345.firebaseapp.com",
+    projectId: "food-preorder-12345",
+    storageBucket: "food-preorder-12345.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:123456789:web:123456789"
+  };
 
-function renderOrder(order) {
-  const container = document.getElementById('order-detail');
-  if (!order || !container) {
-    if (container) container.innerHTML = '<p>Order not found.</p>';
-    return;
-  }
-
-  container.innerHTML = `
-    <h2>Order ${order.id}</h2>
-    <p><strong>Event date:</strong> ${order.eventDate}</p>
-    <p><strong>Placed:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
-    <p><strong>Receive:</strong> ${order.delivery.type} at ${order.timeframe}</p>
-    ${order.delivery.type === 'delivery' ? `<p><strong>Address:</strong> ${order.delivery.address}</p><p><strong>Zone:</strong> ${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</p>` : ''}
-    <p><strong>Name:</strong> ${order.customer.name}</p>
-    <h3>Items</h3>
-    ${order.items.map(item => `
-      <div class="item-row">
-        <strong>${item.name}</strong>
-        ${item.flavor ? `<span> • Flavor: ${item.flavor}</span>` : ''}
-        <br />
-        Sides: ${item.sides.map(side => side.name).join(', ')}
-      </div>
-    `).join('')}
-    <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
-  `;
-}
-
-async function loadOrder() {
-  const container = document.getElementById('order-detail');
-  if (!container) return;
-
-  const orderId = getQueryParam('id');
-  if (!orderId) {
-    container.innerHTML = '<p>Order ID is missing.</p>';
-    return;
-  }
-
-  container.innerHTML = '<p>Loading order…</p>';
-  try {
-    const doc = await db.collection('orders').doc(orderId).get();
-    if (!doc.exists) {
-      container.innerHTML = '<p>Order not found.</p>';
-      return;
-    }
-    renderOrder(doc.data());
-  } catch (error) {
-    console.error(error);
-    container.innerHTML = '<p>Unable to load order.</p>';
-  }
-}
-
-const ORDERS_KEY = 'orders';
-const ADMIN_PASSWORD = 'your-secret-password';
-
-function formatStatus(status) {
-  return status === 'completed' ? 'Completed' : 'Pending';
-}
-
-async function updateOrderStatus(orderId, completed) {
-  try {
-    await db.collection('orders').doc(orderId).update({
-      status: completed ? 'completed' : 'pending'
-    });
-    renderOrders();
-  } catch (error) {
-    console.error(error);
-    alert('Unable to update order status.');
-  }
-}
-
-async function fetchOrders() {
-  const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
-  return snapshot.docs.map(doc => doc.data());
-}
-
-async function renderOrders() {
-  const orders = await fetchOrders();
-  const stats = document.getElementById('order-stats');
-  const container = document.getElementById('orders-container');
-
-  if (!stats || !container) return;
-
-  const total = orders.length;
-  const completed = orders.filter(o => o.status === 'completed').length;
-  const pending = total - completed;
-
-  stats.innerHTML = `
-    <div><strong>Total orders placed:</strong> ${total}</div>
-    <div><strong>Pending:</strong> ${pending}</div>
-    <div><strong>Completed:</strong> ${completed}</div>
-  `;
-
-  if (!orders.length) {
-    container.innerHTML = '<p>No orders have been placed yet.</p>';
-    return;
-  }
-
-  container.innerHTML = `
-    <table class="orders-table">
-      <thead>
-        <tr>
-          <th>Order</th>
-          <th>Name</th>
-          <th>Receive</th>
-          <th>Delivery</th>
-          <th>Items</th>
-          <th>Total</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${orders.map(order => `
-          <tr>
-            <td><strong>${order.id}</strong><br/>${new Date(order.createdAt).toLocaleString()}</td>
-            <td>${order.customer.name}</td>
-            <td>${order.timeframe}</td>
-            <td>${order.delivery.type === 'delivery'
-              ? `<div>${order.delivery.address || 'No address'}</div><div>${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</div>`
-              : 'Pickup'}</td>
-            <td>${order.items.map(item => `
-              <div>
-                <strong>${item.name}</strong>
-                ${item.flavor ? ` • Flavor: ${item.flavor}` : ''}
-                <br/>Sides: ${item.sides.map(side => side.name).join(', ')}
-              </div>
-            `).join('')}</td>
-            <td>$${order.total.toFixed(2)}</td>
-            <td>
-              <label class="order-status-toggle">
-                <input type="checkbox" ${order.status === 'completed' ? 'checked' : ''} data-order-id="${order.id}" />
-                ${formatStatus(order.status)}
-              </label>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
-
-  document.querySelectorAll('input[data-order-id]').forEach(input => {
-    input.addEventListener('change', (event) => {
-      updateOrderStatus(event.target.dataset.orderId, event.target.checked);
-    });
-  });
-}
-
-function showLoginForm() {
-  const gate = document.getElementById('admin-gate');
-  if (!gate) return;
-  gate.innerHTML = `
-    <div class="admin-login">
-      <h2>Admin Access</h2>
-      <p>Enter password to view orders</p>
-      <input type="password" id="password-input" placeholder="Password" />
-      <button onclick="checkPassword()">Login</button>
-    </div>
-  `;
-}
-
-function checkPassword() {
-  const input = document.getElementById('password-input');
-  if (!input) return;
-  if (input.value === ADMIN_PASSWORD) {
-    sessionStorage.setItem('adminAllowed', 'true');
-    document.getElementById('admin-gate')?.remove();
-    document.getElementById('dashboard')?.style?.setProperty('display', 'block');
-    renderOrders();
-  } else {
-    alert('Incorrect password');
-    input.value = '';
-  }
-}
-
-function initAdminPage() {
-  if (!document.getElementById('admin-gate') && !document.getElementById('dashboard')) return;
-
-  if (sessionStorage.getItem('adminAllowed') === 'true') {
-    document.getElementById('admin-gate')?.remove();
-    document.getElementById('dashboard')?.style?.setProperty('display', 'block');
-    renderOrders();
-  } else {
-    showLoginForm();
-  }
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('order-detail')) {
-    loadOrder();
-  }
-  initAdminPage();
-});
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>

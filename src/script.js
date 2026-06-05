@@ -404,3 +404,19 @@ function clearForm() {
   updateSideSelectors();
   updateCartSummary();
 }
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDfJfJfJfJfJfJfJfJfJfJfJfJfJfJfJf",
+    authDomain: "food-preorder-12345.firebaseapp.com",
+    projectId: "food-preorder-12345",
+    storageBucket: "food-preorder-12345.appspot.com",
+    messagingSenderId: "1234567890",
+    appId: "1:123456789:web:123456789"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
