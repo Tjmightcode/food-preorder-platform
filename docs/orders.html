@@ -60,6 +60,23 @@
       font-weight: 700;
     }
   </style>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC5QkK4zDlXfE38Ie3N-NlfmdVCamuVeaQ",
+      authDomain: "food-preorder-system.firebaseapp.com",
+      projectId: "food-preorder-system",
+      storageBucket: "food-preorder-system.firebasestorage.app",
+      messagingSenderId: "844152935022",
+      appId: "1:844152935022:web:403dfae7516d0579758c7f",
+      measurementId: "G-LSCZ47TM23"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
 </head>
 <body>
   <header class="site-header">
@@ -83,148 +100,6 @@
     </section>
   </main>
 
-  <script>
-    const ORDERS_KEY = 'orders';
-    const ADMIN_PASSWORD = 'Tidewater39!'; // Change this to your password
-
-    function getStoredOrders() {
-      return JSON.parse(localStorage.getItem(ORDERS_KEY) || '[]');
-    }
-
-    function saveStoredOrders(orders) {
-      localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
-    }
-
-    function formatStatus(status) {
-      return status === 'completed' ? 'Completed' : 'Pending';
-    }
-
-    function updateOrderStatus(orderId, completed) {
-      const orders = getStoredOrders();
-      const order = orders.find(o => o.id === orderId);
-      if (!order) return;
-      order.status = completed ? 'completed' : 'pending';
-      saveStoredOrders(orders);
-      renderOrders();
-    }
-
-    function renderOrders() {
-      const orders = getStoredOrders();
-      const stats = document.getElementById('order-stats');
-      const container = document.getElementById('orders-container');
-
-      const total = orders.length;
-      const completed = orders.filter(o => o.status === 'completed').length;
-      const pending = total - completed;
-
-      stats.innerHTML = `
-        <div><strong>Total orders placed:</strong> ${total}</div>
-        <div><strong>Pending:</strong> ${pending}</div>
-        <div><strong>Completed:</strong> ${completed}</div>
-      `;
-
-      if (!orders.length) {
-        container.innerHTML = '<p>No orders have been placed yet.</p>';
-        return;
-      }
-
-      container.innerHTML = `
-        <table class="orders-table">
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Name</th>
-              <th>Receive</th>
-              <th>Delivery</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${orders.map(order => `
-              <tr>
-                <td>
-                  <strong>${order.id}</strong><br />
-                  ${new Date(order.createdAt).toLocaleString()}
-                </td>
-                <td>${order.customer.name}</td>
-                <td>${order.timeframe}</td>
-                <td>
-                  ${order.delivery.type === 'delivery'
-                    ? `<div>${order.delivery.address || 'No address'}</div><div>${order.delivery.zone === 'virginiaBeach' ? 'Virginia Beach' : order.delivery.zone}</div>`
-                    : 'Pickup'}
-                </td>
-                <td>
-                  ${order.items.map(item => `
-                    <div>
-                      <strong>${item.name}</strong>
-                      ${item.flavor ? ` • Flavor: ${item.flavor}` : ''}
-                      <br />
-                      Sides: ${item.sides.map(side => side.name).join(', ')}
-                    </div>
-                  `).join('')}
-                </td>
-                <td>$${order.total.toFixed(2)}</td>
-                <td>
-                  <label class="order-status-toggle">
-                    <input type="checkbox" ${order.status === 'completed' ? 'checked' : ''} data-order-id="${order.id}" />
-                    ${formatStatus(order.status)}
-                  </label>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-
-      document.querySelectorAll('input[data-order-id]').forEach(input => {
-        input.addEventListener('change', (event) => {
-          updateOrderStatus(event.target.dataset.orderId, event.target.checked);
-        });
-      });
-    }
-
-    function showLoginForm() {
-      const gate = document.getElementById('admin-gate');
-      gate.innerHTML = `
-        <div class="admin-login">
-          <h2>Admin Access</h2>
-          <p>Enter password to view orders</p>
-          <input type="password" id="password-input" placeholder="Password" />
-          <button onclick="checkPassword()">Login</button>
-        </div>
-      `;
-    }
-
-    function checkPassword() {
-      const input = document.getElementById('password-input');
-      if (input.value === ADMIN_PASSWORD) {
-        sessionStorage.setItem('adminAllowed', 'true');
-        document.getElementById('admin-gate').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        renderOrders();
-      } else {
-        alert('Incorrect password');
-        input.value = '';
-      }
-    }
-
-    // Check if already logged in
-    if (sessionStorage.getItem('adminAllowed') === 'true') {
-      document.getElementById('admin-gate').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      renderOrders();
-    } else {
-      showLoginForm();
-    }
-
-    // Allow Enter key to submit
-    document.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && document.getElementById('password-input')) {
-        checkPassword();
-      }
-    });
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
