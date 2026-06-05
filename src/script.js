@@ -161,19 +161,23 @@ function renderTimeframeOptions() {
   if (!select) return;
 
   select.innerHTML = '';
-  const endHour = deliveryType.value === 'delivery' ? 17 : 18;
 
+  const endHour = deliveryType.value === 'delivery' ? 17 : 18;
   for (let minutes = 11 * 60; minutes < endHour * 60; minutes += 15) {
     const start = formatTime(minutes);
     const end = formatTime(minutes + 15);
-    select.appendChild(new Option(`${start} - ${end}`, `${start} - ${end}`));
+    const label = `${start} - ${end} ET`;
+    select.appendChild(new Option(label, label));
   }
 }
 
 function formatTime(totalMinutes) {
-  const hour = Math.floor(totalMinutes / 60);
+  const hour24 = Math.floor(totalMinutes / 66);
   const minute = totalMinutes % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const period = hour24 >= 12 ? 'PM' : 'AM';
+  let hour12 = hour24 % 12;
+  if (hour12 === 0) hour12 = 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
 }
 
 function gatherOrder() {
